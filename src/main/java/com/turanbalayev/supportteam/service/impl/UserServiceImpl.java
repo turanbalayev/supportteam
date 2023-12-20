@@ -6,6 +6,7 @@ import com.turanbalayev.supportteam.exception.domain.EmailExistException;
 import com.turanbalayev.supportteam.exception.domain.UserNotFoundException;
 import com.turanbalayev.supportteam.exception.domain.UsernameExistException;
 import com.turanbalayev.supportteam.repository.UserRepository;
+import com.turanbalayev.supportteam.service.LoginAttemptService;
 import com.turanbalayev.supportteam.service.UserService;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -22,6 +23,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import javax.transaction.Transactional;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 import static com.turanbalayev.supportteam.constant.UserImplConstant.*;
 import static com.turanbalayev.supportteam.enumeration.Role.*;
@@ -36,12 +38,14 @@ public class UserServiceImpl implements UserService, UserDetailsService {
     Logger LOGGER = LoggerFactory.getLogger(getClass());
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder bCryptPasswordEncoder;
+    private final LoginAttemptService loginAttemptService;
 
 
 
-    public UserServiceImpl(UserRepository userRepository, BCryptPasswordEncoder bCryptPasswordEncoder) {
+    public UserServiceImpl(UserRepository userRepository, BCryptPasswordEncoder bCryptPasswordEncoder, LoginAttemptService loginAttemptService) {
         this.userRepository = userRepository;
         this.bCryptPasswordEncoder = bCryptPasswordEncoder;
+        this.loginAttemptService = loginAttemptService;
     }
 
     @Override
@@ -51,6 +55,7 @@ public class UserServiceImpl implements UserService, UserDetailsService {
             LOGGER.error(NO_USER_FOUND_BY_USERNAME + username);
             throw new UsernameNotFoundException(NO_USER_FOUND_BY_USERNAME + username);
         } else {
+            validateLoginAttempt(user);
             user.setLastLoginDateDisplay(user.getLastLoginDate());
             user.setLastLoginDate(new Date());
             userRepository.save(user);
@@ -58,6 +63,18 @@ public class UserServiceImpl implements UserService, UserDetailsService {
             return new UserPrincipal(user);
         }
 
+    }
+
+    private void validateLoginAttempt(User user) {
+        if(user.isNotLocked()){
+            if(loginAttemptService.hasExceededMaxAttempts(user.getUsername())){
+                user.setNotLocked(false);
+            } else {
+                user.setNotLocked(true);
+            }
+        } else {
+            loginAttemptService.evictUserFromLoginAttemptCache(user.getUsername());
+        }
     }
 
     @Override

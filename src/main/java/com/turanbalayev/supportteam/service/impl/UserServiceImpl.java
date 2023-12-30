@@ -6,6 +6,7 @@ import com.turanbalayev.supportteam.exception.domain.EmailExistException;
 import com.turanbalayev.supportteam.exception.domain.UserNotFoundException;
 import com.turanbalayev.supportteam.exception.domain.UsernameExistException;
 import com.turanbalayev.supportteam.repository.UserRepository;
+import com.turanbalayev.supportteam.service.EmailService;
 import com.turanbalayev.supportteam.service.LoginAttemptService;
 import com.turanbalayev.supportteam.service.UserService;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -20,6 +21,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import javax.mail.MessagingException;
 import javax.transaction.Transactional;
 import java.util.Date;
 import java.util.List;
@@ -39,13 +41,15 @@ public class UserServiceImpl implements UserService, UserDetailsService {
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder bCryptPasswordEncoder;
     private final LoginAttemptService loginAttemptService;
+    private final EmailService emailService;
 
 
 
-    public UserServiceImpl(UserRepository userRepository, BCryptPasswordEncoder bCryptPasswordEncoder, LoginAttemptService loginAttemptService) {
+    public UserServiceImpl(UserRepository userRepository, BCryptPasswordEncoder bCryptPasswordEncoder, LoginAttemptService loginAttemptService, EmailService emailService) {
         this.userRepository = userRepository;
         this.bCryptPasswordEncoder = bCryptPasswordEncoder;
         this.loginAttemptService = loginAttemptService;
+        this.emailService = emailService;
     }
 
     @Override
@@ -100,6 +104,13 @@ public class UserServiceImpl implements UserService, UserDetailsService {
         user.setProfileImageUrl(getTemporaryProfileImageUrl());
 
         LOGGER.info("New user password: " + password);
+
+/*        // Gmail security problem
+        try {
+            emailService.sendNewPasswordEmail(firstName,password,email);
+        } catch (MessagingException e) {
+            throw new RuntimeException(e);
+        }*/
 
         userRepository.save(user);
         return user;

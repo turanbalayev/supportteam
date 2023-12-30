@@ -64,10 +64,5 @@ public class UserResource extends ExceptionHandling {
     }
 
 
-
-
-
-
-
 }
 
